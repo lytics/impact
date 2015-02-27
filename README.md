@@ -31,7 +31,7 @@ Alternatively, consider the following upward trending process and its correspond
 
 ![positivewalk](https://cloud.githubusercontent.com/assets/3698679/6422053/3c224d58-be89-11e4-96e7-219acda4691e.png)
 
-We likewise simulate a large number of alternatives
+We likewise simulate a large number of alternatives.  Since the realized *Candidate* sub-series lies well within the range of simulated alternatives, there's no evidence of a causal disruption at this point in the series.
 
 ![positivewalk_20](https://cloud.githubusercontent.com/assets/3698679/6422054/3c22e862-be89-11e4-8513-18a06925f772.png)
 
