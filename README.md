@@ -1,21 +1,21 @@
-Changepoint
-===========
+Impact
+======
 
-[![Build Status](https://travis-ci.org/lytics/changepoint.svg?branch=master)](https://travis-ci.org/lytics/changepoint) [![GoDoc](https://godoc.org/github.com/lytics/changepoint?status.svg)](https://godoc.org/github.com/lytics/changepoint)
+[![Build Status](https://travis-ci.org/lytics/impact.svg?branch=master)](https://travis-ci.org/lytics/impact) [![GoDoc](https://godoc.org/github.com/lytics/impact?status.svg)](https://godoc.org/github.com/lytics/impact)
 
-Lightweight bootstrap testing for changepoint analysis in [Go](https://golang.org).
+Lightweight bootstrap testing for detecting causal impact to timeseries in [Go](https://golang.org).
 
 ## Purpose
 
-Changepoint performs nonparametric causal inference for changes in time series data.  It separates a given time series into disjoint and adjacent sub-series to determine if there's that the structure of the time series process has changed.
+**Impact detects significant changes to the location of a time series**.  For a candidate point in time for change detection, it uses the structure of the preceding data to determine the probability of the subsequent data arriving to its final location.  A low probability indicates a significant departure in location, or a *casual impact* to the series.
 
-Changepoint is designed to be free of any distributional assumptions, for use in any processes whose likelihood function is either unknown or dynamic.  It is location, scale and distribution free.
+Because of the nature of the underlying Monte Carlo simulation, Impact is free of any distributional assumptions, and fit for use in any processes whose likelihood function is either unknown or dynamic &mdash; **it is location, scale and distribution free**.
 
 ## Design
 
-Changepoint creates a *reference* sub-series, which serves to provide information on the structural profile of the series.  It also creates a *candidate* sub-series which supplies evidence for or against the structural change.  
+Impact requires a *reference* sub-series, which serves to provide information on the structural profile of the series.  It also requires a *candidate* sub-series which supplies evidence for or against the location change.
 
-Changepoint assumes that both the *reference* and *candidate* subseries come from the same process under the same generative parameters.  Under this assumption, it performs Monte Carlo simulation (via bootstrap resampling) to simulate possible alternatives to the *candidate* subseries using data from the *reference* subseries.  The destination of each simulated walk is compared against the realized value from the *candidate* subseries, and the percentage of destinations considered as or more extreme (in terms of absolute deviation from the series) create the "p-value" for the test.
+Impact assumes that both the *reference* and *candidate* subseries come from the same process under the same generative parameters.  Under this assumption, it performs Monte Carlo simulation (via bootstrap resampling) to simulate possible alternatives to the *candidate* subseries using data from the *reference* subseries.  The destination of each simulated walk is compared against the realized value from the *candidate* subseries, and the percentage of destinations considered as or more extreme (in terms of absolute deviation in location) create the "p-value" for the test.
 
 ## Example
 
@@ -45,7 +45,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/lytics/changepoint"
+	"github.com/lytics/impact"
 )
 
 func main() {
