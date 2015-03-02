@@ -1,4 +1,4 @@
-package changepoint
+package impact
 
 import (
 	"fmt"

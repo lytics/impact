@@ -1,4 +1,4 @@
-package changepoint
+package impact
 
 import (
 	"math/rand"
@@ -32,7 +32,7 @@ func NewDetector() *Detector {
 	return &Detector{}
 }
 
-func (this *Detector) smooth(x []float64) []float64 {
+func (d *Detector) smooth(x []float64) []float64 {
 	n := len(x)
 
 	nsmooth := n - smoother
@@ -58,17 +58,17 @@ func (this *Detector) smooth(x []float64) []float64 {
 }
 
 // smooth the two series adjacently to borrow information on the boundaries
-func (this *Detector) smoothSeries(x1, x2 []float64) ([]float64, []float64) {
+func (d *Detector) smoothSeries(x1, x2 []float64) ([]float64, []float64) {
 	n1 := len(x1)
 	n2 := len(x2)
 
 	x1 = append(x1, x2...)
-	smoothed := this.smooth(x1)
+	smoothed := d.smooth(x1)
 	return smoothed[0:n1], smoothed[n1:(n1 + n2)]
 }
 
 // take random steps in a walk based on the `diff`.  (`diff` is a bunch of steps.)
-func (this *Detector) walk(start float64, n int, diff []float64) []float64 {
+func (d *Detector) walk(start float64, n int, diff []float64) []float64 {
 	simulated := make([]float64, n)
 
 	// where we start our walk, simulate each step
@@ -83,8 +83,8 @@ func (this *Detector) walk(start float64, n int, diff []float64) []float64 {
 
 // Perform Monte Carlo based changepoint detection between two disjoint and adjacent subseries of
 // a larger time series.  Increase `niter` to improve accuracy of the detection.
-func (this *Detector) Detect(x1, x2 []float64, niter int) (float64, Operator) {
-	x1smooth, x2smooth := this.smoothSeries(x1, x2)
+func (d *Detector) Detect(x1, x2 []float64, niter int) (float64, Operator) {
+	x1smooth, x2smooth := d.smoothSeries(x1, x2)
 
 	n1 := len(x1)
 	n2 := len(x2)
@@ -94,7 +94,7 @@ func (this *Detector) Detect(x1, x2 []float64, niter int) (float64, Operator) {
 	// the final destinations of a bunch of random walks
 	simDest := make([]float64, niter)
 	for i := 0; i < niter; i++ {
-		walk := this.walk(x1smooth[n1-1], n2, x1diff)
+		walk := d.walk(x1smooth[n1-1], n2, x1diff)
 		simDest[i] = walk[n2-1]
 	}
 
