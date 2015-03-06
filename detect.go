@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-type Detector struct{}
-
 // the operator indicates whether the candidate series has increased,
 // decreased or stayed largely the same
 type Operator int
@@ -24,15 +22,7 @@ var (
 	rndMutex = &sync.Mutex{}
 )
 
-//
-//  TODO: Search for off by one index errors since porting from R
-//
-
-func NewDetector() *Detector {
-	return &Detector{}
-}
-
-func (d *Detector) smooth(x []float64) []float64 {
+func smooth(x []float64) []float64 {
 	n := len(x)
 
 	nsmooth := n - smoother
@@ -58,17 +48,17 @@ func (d *Detector) smooth(x []float64) []float64 {
 }
 
 // smooth the two series adjacently to borrow information on the boundaries
-func (d *Detector) smoothSeries(x1, x2 []float64) ([]float64, []float64) {
+func smoothSeries(x1, x2 []float64) ([]float64, []float64) {
 	n1 := len(x1)
 	n2 := len(x2)
 
 	x1 = append(x1, x2...)
-	smoothed := d.smooth(x1)
+	smoothed := smooth(x1)
 	return smoothed[0:n1], smoothed[n1:(n1 + n2)]
 }
 
 // take random steps in a walk based on the `diff`.  (`diff` is a bunch of steps.)
-func (d *Detector) walk(start float64, n int, diff []float64) []float64 {
+func walk(start float64, n int, diff []float64) []float64 {
 	simulated := make([]float64, n)
 
 	// where we start our walk, simulate each step
@@ -81,10 +71,11 @@ func (d *Detector) walk(start float64, n int, diff []float64) []float64 {
 	return simulated
 }
 
-// Perform Monte Carlo based changepoint detection between two disjoint and adjacent subseries of
-// a larger time series.  Increase `niter` to improve accuracy of the detection.
-func (d *Detector) Detect(x1, x2 []float64, niter int) (float64, Operator) {
-	x1smooth, x2smooth := d.smoothSeries(x1, x2)
+// DetectImpact performs Monte Carlo based changepoint detection between two disjoint
+// and adjacent subseries of a larger time series.  Increase `niter` to improve
+// accuracy of the detection.
+func DetectImpact(x1, x2 []float64, niter int) (float64, Operator) {
+	x1smooth, x2smooth := smoothSeries(x1, x2)
 
 	n1 := len(x1)
 	n2 := len(x2)
@@ -94,7 +85,7 @@ func (d *Detector) Detect(x1, x2 []float64, niter int) (float64, Operator) {
 	// the final destinations of a bunch of random walks
 	simDest := make([]float64, niter)
 	for i := 0; i < niter; i++ {
-		walk := d.walk(x1smooth[n1-1], n2, x1diff)
+		walk := walk(x1smooth[n1-1], n2, x1diff)
 		simDest[i] = walk[n2-1]
 	}
 
@@ -150,14 +141,19 @@ func sample(x []float64) float64 {
 	return x[index]
 }
 
-// calculate the average of the vector
-func mean(x []float64) float64 {
+// calculate the sum of the vector
+func sum(x []float64) float64 {
 	sum := 0.0
 	for _, value := range x {
 		sum += value
 	}
 
-	return sum / float64(len(x))
+	return sum
+}
+
+// calculate the average of the vector
+func mean(x []float64) float64 {
+	return sum(x) / float64(len(x))
 }
 
 // calculate a vector of differences

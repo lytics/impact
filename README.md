@@ -3,19 +3,29 @@ Impact
 
 [![Build Status](https://travis-ci.org/lytics/impact.svg?branch=master)](https://travis-ci.org/lytics/impact) [![GoDoc](https://godoc.org/github.com/lytics/impact?status.svg)](https://godoc.org/github.com/lytics/impact)
 
-Lightweight bootstrap testing for detecting causal impact to timeseries in [Go](https://golang.org).
+Testing for change point detection and causal impact to timeseries in [Go](https://golang.org).
 
 ## Purpose
 
-**Impact detects significant changes to the location of a time series**.  For a candidate point in time for change detection, it uses the structure of the preceding data to determine the probability of the subsequent data arriving to its final location.  A low probability indicates a significant departure in location, or a *casual impact* to the series.
+**Impact detects significant changes to the location of a time series**.
+
+For a candidate point in time for change detection, it uses the structure of the preceding data to determine the probability of the subsequent data arriving to its final location.  A low probability indicates a significant departure in location, or a *casual impact* to the series.
 
 Because of the nature of the underlying Monte Carlo simulation, Impact is free of any distributional assumptions, and fit for use in any processes whose likelihood function is either unknown or dynamic &mdash; **it is location, scale and distribution free**.
 
 ## Design
 
-Impact requires a *reference* sub-series, which serves to provide information on the structural profile of the series.  It also requires a *candidate* sub-series which supplies evidence for or against the location change.
+### Changepoint Detection
 
-Impact assumes that both the *reference* and *candidate* subseries come from the same process under the same generative parameters.  Under this assumption, it performs Monte Carlo simulation (via bootstrap resampling) to simulate possible alternatives to the *candidate* subseries using data from the *reference* subseries.  The destination of each simulated walk is compared against the realized value from the *candidate* subseries, and the percentage of destinations considered as or more extreme (in terms of absolute deviation in location) create the "p-value" for the test.
+Impact implements Matteson and James' [divisive entropy decomposition algorithm](http://arxiv.org/pdf/1306.4933.pdf) for nonparametric changepoint detection.  
+
+### Causal Inference
+
+Once changepoints are detected and used to divide the series the set of disjoint subsets, adjacent subsets can be used to determine whether the series between two inpoints implies causal change in the location of the series.
+
+Given that a series contains one or more changepoints, preceding subsets, called *reference series*, serve to provide evidence for or against the location change in the subsequent subset, called a *candidate* series.
+
+Impact performs Monte Carlo simulation (via bootstrap resampling) to create a set of alternative [random walks](http://en.wikipedia.org/wiki/Random_walk) to compare against the realized candidate series.  The destination of each simulated walk is compared against the realized value from the *candidate* subseries, and the percentage of destinations considered as or more extreme (in terms of absolute deviation in location) create the "p-value" for the test.
 
 ## Example
 
@@ -49,13 +59,18 @@ import (
 )
 
 func main() {
-	niter := 1000
+niter := 1000
 	series := []float64{0.2, 0, 0.4, 0, 0.1, 0.5, 0.2, 0.4, 0, 0, 0.1, 0.6, 0.1, 0.3, 0.1, 0.1, 0.2, 0.3, 0.1, 0.1}
-	detector := NewDetector()
 
-	// sub-series for detection must be chosen a priori
-	p, op := detector.Detect(series[0:14], series[14:20], niter)
-	fmt.Println(p, op)
+	// detect changepoints
+	significance := 0.05
+	minSize := 3
+	changes, _ := DetectChanges(series, significance, niter, minSize)
+	fmt.Println(changes)
+	// Output: [0 8 20]
+
+	// detect impact
+	p, op := DetectImpact(series[changes[0]:changes[1]], series[changes[1]:changes[2]], niter)
 
 	// Note that because of the nature of bootstrapping, the p-value from the test is subject to minor fluctuations.
 	// To get a more accurate/consistent p-value, increase the number of iterations in the detection.

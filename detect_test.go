@@ -7,12 +7,11 @@ import (
 )
 
 var (
-	mockData = []float64{0.2, 0, 0.4, 0, 0.1, 0.5, 0.2, 0.4, 0, 0, 0.1, 0.6, 0.1, 0.3, 0.1, 0.1, 0.2, 0.3, 0.1, 0.1}
-	detector = NewDetector()
+	mockShort = []float64{0.2, 0, 0.4, 0, 0.1, 0.5, 0.2, 0.4, 0, 0, 0.1, 0.6, 0.1, 0.3, 0.1, 0.1, 0.2, 0.3, 0.1, 0.1}
 )
 
 func TestSmooth(t *testing.T) {
-	smoothed := detector.smooth(mockData)
+	smoothed := smooth(mockShort)
 
 	// check the first couple of smoothed values
 	assert.Equalf(t, 0.125, smoothed[0], "incorrect smoothed value")
@@ -23,10 +22,10 @@ func TestSmooth(t *testing.T) {
 }
 
 func TestDiff(t *testing.T) {
-	mockDiff := diff(mockData)
+	mockDiff := diff(mockShort)
 
 	// make sure the difference is the right length
-	assert.Equal(t, len(mockData)-1, len(mockDiff))
+	assert.Equal(t, len(mockShort)-1, len(mockDiff))
 
 	// make sure the first couple differences are correct
 	assert.Equalf(t, -0.2, mockDiff[0], "incorrect vector difference")
@@ -34,16 +33,16 @@ func TestDiff(t *testing.T) {
 }
 
 func TestComparisons(t *testing.T) {
-	greaterCount := gt(0.3, mockData)
+	greaterCount := gt(0.3, mockShort)
 	assert.Equal(t, 4, greaterCount)
 
-	lessCount := lt(0.3, mockData)
+	lessCount := lt(0.3, mockShort)
 	assert.Equal(t, 14, lessCount)
 }
 
 func TestWalk(t *testing.T) {
 	n := 10
-	randomWalk := detector.walk(10.0, n, mockData)
+	randomWalk := walk(10.0, n, mockShort)
 
 	assert.Equal(t, n, len(randomWalk))
 
@@ -54,7 +53,7 @@ func TestWalk(t *testing.T) {
 
 func TestDetect(t *testing.T) {
 	// get the pvalue and operator for the test
-	p, op := detector.Detect(mockData[0:14], mockData[14:20], 200)
+	p, op := DetectImpact(mockShort[0:14], mockShort[14:20], 200)
 	assert.Tf(t, p < 0.1, "pvalue for Detect should be small (likely < 0.05)")
 	assert.Equalf(t, LESS_THAN, op, "the series detection should show a decrease")
 }
