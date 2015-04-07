@@ -24,24 +24,20 @@ var (
 
 func smooth(x []float64) []float64 {
 	n := len(x)
-
-	nsmooth := n - smoother
-
 	smoothed := make([]float64, n)
 
-	for i := smoother + 1; i < nsmooth; i++ {
-		window := x[(i - smoother):(i + smoother)]
-		smoothed[i] = mean(window)
-	}
+	for index := 0; index < n; index++ {
+		leftmost := index - smoother
+		if leftmost < 0 {
+			leftmost = 0
+		}
 
-	// pad beginning with first mean
-	for i := 0; i < smoother; i++ {
-		smoothed[i] = smoothed[smoother+1]
-	}
+		rightmost := index + smoother + 1
+		if rightmost > n {
+			rightmost = n
+		}
 
-	// pad end with last mean
-	for i := n - smoother + 1; i < n; i++ {
-		smoothed[i] = smoothed[n-smoother]
+		smoothed[index] = mean(x[leftmost:rightmost])
 	}
 
 	return smoothed
@@ -49,6 +45,7 @@ func smooth(x []float64) []float64 {
 
 // smooth the two series adjacently to borrow information on the boundaries
 func smoothSeries(x1, x2 []float64) ([]float64, []float64) {
+
 	n1 := len(x1)
 	n2 := len(x2)
 
@@ -75,7 +72,8 @@ func walk(start float64, n int, diff []float64) []float64 {
 // and adjacent subseries of a larger time series.  Increase `niter` to improve
 // accuracy of the detection.
 func DetectImpact(x1, x2 []float64, niter int) (float64, Operator) {
-	x1smooth, x2smooth := smoothSeries(x1, x2)
+	x1smooth := smooth(x1)
+	x2smooth := smooth(x2)
 
 	n1 := len(x1)
 	n2 := len(x2)

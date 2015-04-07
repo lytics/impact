@@ -1,6 +1,7 @@
 package impact
 
 import (
+	"math"
 	"testing"
 
 	"github.com/bmizerany/assert"
@@ -14,11 +15,11 @@ func TestSmooth(t *testing.T) {
 	smoothed := smooth(mockShort)
 
 	// check the first couple of smoothed values
-	assert.Equalf(t, 0.125, smoothed[0], "incorrect smoothed value")
-	assert.Equalf(t, 0.125, smoothed[1], "incorrect smoothed value")
-	assert.Equalf(t, 0.0, smoothed[2], "incorrect smoothed value")
-	assert.Equalf(t, 0.125, smoothed[3], "incorrect smoothed value")
-	assert.Equalf(t, 0.25, smoothed[4], "incorrect smoothed value")
+	assert.Equalf(t, true, equal(0.2, smoothed[0]), "incorrect smoothed value")
+	assert.Equalf(t, true, equal(0.15, smoothed[1]), "incorrect smoothed value")
+	assert.Equalf(t, true, equal(0.14, smoothed[2]), "incorrect smoothed value")
+	assert.Equalf(t, true, equal(0.2, smoothed[3]), "incorrect smoothed value")
+	assert.Equalf(t, true, equal(0.24, smoothed[4]), "incorrect smoothed value")
 }
 
 func TestDiff(t *testing.T) {
@@ -28,8 +29,8 @@ func TestDiff(t *testing.T) {
 	assert.Equal(t, len(mockShort)-1, len(mockDiff))
 
 	// make sure the first couple differences are correct
-	assert.Equalf(t, -0.2, mockDiff[0], "incorrect vector difference")
-	assert.Equalf(t, 0.4, mockDiff[1], "incorrect vector difference")
+	assert.Equalf(t, true, equal(-0.2, mockDiff[0]), "incorrect vector difference")
+	assert.Equalf(t, true, equal(0.4, mockDiff[1]), "incorrect vector difference")
 }
 
 func TestComparisons(t *testing.T) {
@@ -56,4 +57,11 @@ func TestDetect(t *testing.T) {
 	p, op := DetectImpact(mockShort[0:14], mockShort[14:20], 200)
 	assert.Tf(t, p < 0.1, "pvalue for Detect should be small (likely < 0.05)")
 	assert.Equalf(t, LESS_THAN, op, "the series detection should show a decrease")
+}
+
+func equal(a, b float64) bool {
+	eps := math.Abs(a - math.Nextafter(a, 1))
+	abs := math.Abs(b - a)
+
+	return abs <= eps
 }
