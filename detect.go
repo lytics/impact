@@ -2,13 +2,20 @@ package impact
 
 import (
 	"math/rand"
+	"os"
+	"runtime"
+	"strconv"
 	"sync"
 	"time"
+
+	"github.com/drewlanenga/govector"
 )
 
 // the operator indicates whether the candidate series has increased,
 // decreased or stayed largely the same
 type Operator int
+
+type series govector.Vector
 
 const (
 	EQUALS       Operator = 0
@@ -17,77 +24,74 @@ const (
 )
 
 var (
-	smoother = 2 // the amount of smoothing on either side
-	rnd      = rand.New(rand.NewSource(time.Now().UnixNano()))
-	rndMutex = &sync.Mutex{}
+	smoother uint = 2 // the amount of smoothing on either side
+	rnd           = rand.New(rand.NewSource(time.Now().UnixNano()))
+	rndMutex      = &sync.Mutex{}
 )
 
-func smooth(x []float64) []float64 {
-	n := len(x)
-	smoothed := make([]float64, n)
+func walks(niter, nsteps, ncpu int, start float64, history govector.Vector) series {
+	destinations := make(series, niter)
 
-	for index := 0; index < n; index++ {
-		leftmost := index - smoother
-		if leftmost < 0 {
-			leftmost = 0
-		}
+	steps := history.Diff()
 
-		rightmost := index + smoother + 1
-		if rightmost > n {
-			rightmost = n
-		}
-
-		smoothed[index] = mean(x[leftmost:rightmost])
+	c := make(chan int, ncpu)
+	for i := 0; i < niter; i++ {
+		go destinations.walk(i, nsteps, start, steps, c)
 	}
 
-	return smoothed
-}
+	// drain the channel
+	for i := 0; i < ncpu; i++ {
+		<-c // wait for one task to complete
+	}
 
-// smooth the two series adjacently to borrow information on the boundaries
-func smoothSeries(x1, x2 []float64) ([]float64, []float64) {
-
-	n1 := len(x1)
-	n2 := len(x2)
-
-	x1 = append(x1, x2...)
-	smoothed := smooth(x1)
-	return smoothed[0:n1], smoothed[n1:(n1 + n2)]
+	// all done
+	return destinations
 }
 
 // take random steps in a walk based on the `diff`.  (`diff` is a bunch of steps.)
-func walk(start float64, n int, diff []float64) []float64 {
-	simulated := make([]float64, n)
+func (s series) walk(i, nsteps int, start float64, diff govector.Vector, c chan int) {
+	walkrnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	// where we start our walk, simulate each step
-	value := start
-	for i := 0; i < n; i++ {
-		step := sample(diff)
-		value += step
-		simulated[i] = value
+	n := len(diff)
+	dest := start
+	for i := 0; i < nsteps; i++ {
+		which := walkrnd.Intn(n)
+		dest += diff[which]
 	}
-	return simulated
+
+	s[i] = dest
+	c <- 1 // signal that the walk has finished
 }
 
 // DetectImpact performs Monte Carlo based changepoint detection between two disjoint
 // and adjacent subseries of a larger time series.  Increase `niter` to improve
 // accuracy of the detection.
-func DetectImpact(x1, x2 []float64, niter int) (float64, Operator) {
-	x1smooth := smooth(x1)
-	x2smooth := smooth(x2)
-
-	n1 := len(x1)
-	n2 := len(x2)
-
-	x1diff := diff(x1smooth)
-
-	// the final destinations of a bunch of random walks
-	simDest := make([]float64, niter)
-	for i := 0; i < niter; i++ {
-		walk := walk(x1smooth[n1-1], n2, x1diff)
-		simDest[i] = walk[n2-1]
+func DetectImpact(x1, x2 []float64, niter int) (float64, Operator, error) {
+	v1, err := govector.AsVector(x1)
+	if err != nil {
+		return 0.0, EQUALS, err
 	}
 
-	realDest := x2smooth[n2-1]
+	v2, err := govector.AsVector(x2)
+	if err != nil {
+		return 0.0, EQUALS, err
+	}
+
+	x1smooth := v1.Smooth(smoother, smoother)
+	x2smooth := v2.Smooth(smoother, smoother)
+
+	x1diff := x1smooth.Diff()
+
+	ncpu, _ := strconv.Atoi(os.Getenv("GOMAXPROCS"))
+	if ncpu == 0 {
+		ncpu = runtime.NumCPU()
+	}
+	runtime.GOMAXPROCS(ncpu)
+
+	// the final destinations of a bunch of random walks
+	simDest := walks(niter, len(x2), ncpu, x1smooth[len(x1)-1], x1diff)
+
+	realDest := x2smooth[len(x2)-1]
 
 	plower := float64(lt(realDest, simDest)) / float64(niter)
 	pupper := float64(gt(realDest, simDest)) / float64(niter)
@@ -103,7 +107,7 @@ func DetectImpact(x1, x2 []float64, niter int) (float64, Operator) {
 		op = GREATER_THAN
 	}
 
-	return p, op
+	return p, op, nil
 }
 
 // count the number of xs greater than x
@@ -128,39 +132,4 @@ func lt(x float64, xs []float64) int {
 	}
 
 	return count
-}
-
-// sample one entry from the vector
-func sample(x []float64) float64 {
-	rndMutex.Lock()
-	defer rndMutex.Unlock()
-
-	index := rnd.Intn(len(x))
-	return x[index]
-}
-
-// calculate the sum of the vector
-func sum(x []float64) float64 {
-	sum := 0.0
-	for _, value := range x {
-		sum += value
-	}
-
-	return sum
-}
-
-// calculate the average of the vector
-func mean(x []float64) float64 {
-	return sum(x) / float64(len(x))
-}
-
-// calculate a vector of differences
-func diff(x []float64) []float64 {
-	difference := make([]float64, len(x)-1)
-
-	for i := 0; i < len(x)-1; i++ {
-		difference[i] = x[i+1] - x[i]
-	}
-
-	return difference
 }

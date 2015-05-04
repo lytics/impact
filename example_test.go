@@ -16,5 +16,5 @@ func Example() {
 	// Output: [0 8 20]
 
 	// detect impact
-	_, _ = DetectImpact(series[changes[0]:changes[1]], series[changes[1]:changes[2]], niter)
+	_, _, _ = DetectImpact(series[changes[0]:changes[1]], series[changes[1]:changes[2]], niter)
 }
